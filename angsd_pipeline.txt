@@ -1,0 +1,93 @@
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                Demographic Analysis SFS                  #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+# run from within:
+
+/external/data/Emily/Seal_RADseq/cebitec_2016/AFS/SAMPLES_PILON/GATK/
+
+# results to:
+
+~/angsd_pilon (now ~/PROJECTS/RAD_demography_2018)
+
+
+# run angsd on south georgia bam files (polymorphic sites)
+
+nohup ~/programs/angsd/angsd -uniqueOnly 1 -remove_bads 1 -baq 1 -minMapQ 20 -minQ 20 -minInd 63 \
+                        -setMinDepth 378 -setMaxDepth 945\
+                        -doCounts 1 -GL 1 -doGlf 3 \
+                        -doMajorMinor 1 -doMaf 2 -SNP_pval 1e-6 -doGeno 3 -out ~/angsd_pilon/afs_SG_SFS \
+                        -ref ../../../../reference/submission.assembly.ArcGaz001_AP3.GapClosed.ArcGaz.paired.PBJelly2.utg000001c.utg.quiver.nopipe.pilon.fa -doPost 1 -bam SG_bam.filelist.txt\
+                        -doSaf 1 -fold 1 -anc ../../../../reference/submission.assembly.ArcGaz001_AP3.GapClosed.ArcGaz.paired.PBJelly2.utg000001c.utg.quiver.nopipe.pilon.fa &
+
+
+# run angsd on all sites including monomorphic; delete -SNP_pval 1e-6
+
+nohup ~/programs/angsd/angsd -uniqueOnly 1 -remove_bads 1 -baq 1 -minMapQ 20 -minQ 20 -minInd 63 \
+                        -setMinDepth 378 -setMaxDepth 945\
+                        -doCounts 1 -GL 1 -doGlf 3 \
+                        -doMajorMinor 1 -doMaf 2 -doGeno 3 -out ~/angsd_pilon/afs_SG_allsites_SFS \
+                        -ref ../../../../reference/submission.assembly.ArcGaz001_AP3.GapClosed.ArcGaz.paired.PBJelly2.utg000001c.utg.quiver.nopipe.pilon.fa -doPost 1 -bam SG_bam.filelist.txt\
+                        -doSaf 1 -fold 1 -anc ../../../../reference/submission.assembly.ArcGaz001_AP3.GapClosed.ArcGaz.paired.PBJelly2.utg000001c.utg.quiver.nopipe.pilon.fa &
+
+
+
+# DONE 
+
+set mind depth , min number of inds X depth
+90% of 70 = 63
+min depth 6
+6*63 = 378
+max depth 15
+15*63 = 945
+-anc is the ref
+
+
+
+# get number of sites
+zcat afs_SG_SFS.mafs.gz | tail -n+2 | wc -l
+113905
+
+zcat afs_SG_allsites_SFS.mafs.gz | tail -n+2 | wc -l
+17267205
+0.65%
+
+
+# SFS calculation with optimization
+
+# polymorphic sites
+~/programs/angsd/misc/realSFS afs_SG_SFS.saf.idx -maxIter 100 2> /dev/null > afs.sfs
+
+
+# all sites
+~/programs/angsd/misc/realSFS afs_SG_allsites_SFS.saf.idx -maxIter 100 2> /dev/null > afs_allsites.sfs
+
+
+# bootstrap the SFS for fastsimcoal analysis (all sites)
+~/programs/angsd/misc/realSFS afs_SG_allsites_SFS.saf.idx -bootstrap 100 -P 5 2> /dev/null > afs_allsites_boot.sfs
+
+# bootstrap another 100 for grendizer run (all sites)
+~/programs/angsd/misc/realSFS afs_SG_allsites_SFS.saf.idx -bootstrap 100 -P 5 2> /dev/null > afs_allsites_boot_grendizer.sfs
+
+
+
+# reformat file for fastsimcol
+
+sfs <- scan("../../demography/angsd/nes25.sfs")
+# create names
+sfs_names <- sapply(1:length(sfs), function(x) paste0("d0_", x))
+
+sink("../../demography/fastsimcoal/nes_MAFpop0.obs")
+cat("1 observations")
+cat("\n")
+cat(sfs_names)
+cat("\n")
+cat(sfs)
+sink()
+
+
+# Subsequent analysis using fastsimcoal2 run from RAD_demography_2018 R project
+
+
